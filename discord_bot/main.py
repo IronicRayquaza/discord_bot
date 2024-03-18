@@ -1,65 +1,29 @@
-from typing import Final
 import os
+from typing import Final
 from dotenv import load_dotenv
-from discord import Intents, Client, Message
-from responses import get_response
+from discord import Intents, Client, Interaction
+from discord.ext import commands
+from discord_slash  import SlashCommand, SlashContext
 
-# STEP 0: LOAD OUR TOKEN FROM SOMEWHERE SAFE
 load_dotenv()
 TOKEN: Final[str] = os.getenv('DISCORD_TOKEN')
 
-# STEP 1: BOT SETUP
 intents: Intents = Intents.default()
-intents.message_content = True  # NOQA
-client: Client = Client(intents=intents)
+intents.message_content = True
 
+class MyBot(commands.Bot):
+    def __init__(self):
+        super().__init__(command_prefix='!', intents=intents)
 
-# STEP 2: MESSAGE FUNCTIONALITY
-async def send_message(message: Message, user_message: str) -> None:
-    if not user_message:
-        print('(Message was empty because intents were not enabled probably)')
-        return
+    async def on_ready(self):
+        print(f'{self.user} is now running!')
 
-    if is_private := user_message[0] == '?':
-        user_message = user_message[1:]
+client = MyBot()
+slash = SlashCommand(client, sync_commands=True)
 
-    try:
-        response: str = get_response(user_message)
-        await message.author.send(response) if is_private else await message.channel.send(response)
-    except Exception as e:
-        print(e)
-
-
-# STEP 3: HANDLING THE STARTUP FOR OUR BOT
-@client.event
-async def on_ready() -> None:
-    print(f'{client.user} is now running!')
-
-
-# STEP 4: HANDLING INCOMING MESSAGES
-@client.event
-async def on_message(message: Message) -> None:
-    if message.author == client.user:
-        return
-
-    username: str = str(message.author)
-    user_message: str = message.content
-    channel: str = str(message.channel)
-
-    print(f'[{channel}] {username}: "{user_message}"')
-    await send_message(message, user_message)
-
-
-# STEP 5: MAIN ENTRY POINT
-def main() -> None:
-    client.run(token=TOKEN)
-
+@slash.slash(name="hello_world", description="Prints Hello World")
+async def _hello_world(ctx: SlashContext):
+    await ctx.send(content="Hello World")
 
 if __name__ == '__main__':
-    main()
-
-
-
-
-
-
+    client.run(TOKEN)
